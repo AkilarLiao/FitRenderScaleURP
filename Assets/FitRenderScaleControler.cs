@@ -18,11 +18,6 @@ public class FitRenderScaleControler : MonoBehaviour
             OnEndCameraRendering;
         RenderPipelineManager.endCameraRendering +=
             OnEndCameraRendering;
-
-        //var universalAdditionalCameraData = m_targetCamera.GetUniversalAdditionalCameraData();
-        //universalAdditionalCameraData.
-
-        //m_targetCamera.clearFlags = CameraClearFlags.Nothing;
     }
     private void OnDisable()
     {
@@ -39,7 +34,6 @@ public class FitRenderScaleControler : MonoBehaviour
         {
             m_originalScaleRatio = UniversalRenderPipeline.asset.renderScale;
             UniversalRenderPipeline.asset.renderScale = 1.0f;
-            //camera.clearFlags = CameraClearFlags.Nothing;
         }
     }
     private void OnEndCameraRendering(ScriptableRenderContext context,
