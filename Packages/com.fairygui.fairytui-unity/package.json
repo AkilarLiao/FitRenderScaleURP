@@ -1,0 +1,21 @@
+{
+    "name": "com.fairygui.fairytui-unity",
+    "description": "A FairyGUI Unity Wrapper.",
+    "version": "1.0.0-preview.1",
+    "unity": "2019.4",
+    "displayName": "FairyGUI",
+    "dependencies": {        
+        "com.unity.render-pipelines.universal": "7.6.0",
+		"com.unity.settings-manager": "2.0.1"
+    },
+	"keywords": [
+		"unity",
+		"urp",
+		"graphics"
+	],
+	"author": {
+		"name": "IGG-三部-廖峻漢",
+		"email": "akilar.liao@innonet.com.tw",
+		"url": "http://igg.com"
+	}
+}

@@ -1,0 +1,18 @@
+{
+    "name": "FGUI.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:8c1f399563914284eafe38cc9b6f87d4"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

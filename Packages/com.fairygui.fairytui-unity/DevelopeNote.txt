@@ -1,0 +1,758 @@
+unity原生庫整合測試。
+
+ssao整合…
+//1.PreDepthNormal，產生了SSAO（
+	之後考慮就不用做CopyDepth及AppendGroundDepth的流程）
+//2.關於SSAO的Receiveing，他是做在物件的光照流程去做Receving
+	，而不是用後處理去接收…??
+//3.啟動AfterOpaque，就是走後處理模式，而非畫物件
+	進行相關接收…
+//4.afterOpaque模式，當物件體多且屏占比重疊率高，
+	使用AfterOpaque會比物件接收來得好，但手機平台有
+	專門的剔除技術（如IOS的HSV），具體場景還是自己
+	測試一下比較好。（跟ScreenSpaceShadow有類似的概念）	
+//5.screenSpcaeShadow，減少級聯陰影貼圖的使用，
+	是一個RenderFeature，
+	由於這種屏幕空間陰影在具有許多陰影投射對象的室外
+	環境中最有用，雖然您應該看不到視覺質量有任何差異，
+	但應該會看到性能有所提高，而級聯陰影貼圖是瓶頸。
+	（他會啟動預渲染深度嗎?會，所以不見得很好…）
+	
+	
+
+第一次運行：
+1.點選Tools/MobileURP/SetupSceneEditSetting
+2.點選MP.Terrain.TerrainSetting，並設定
+	GroundTileTextures及GrouncNormalTileTextures參數
+3.點選MP.Terrain.VegetationEditSetting，並設定
+	VegetationMainTextures參數
+	
+產生MPScene流程：
+1.在Hierarchy按滑鼠右鍵，並點選MobileURP/MPScene
+2.在MP.MPSceneSettingGenerator視窗下設定好相關參數，
+	並點選OK來產生MPScene
+//=======================================================
+1.提供PerformanceTest測試場景到IGGProjects/MobileURP
+	a.相關資料
+	b.相關測試數據（內存相關及加載時間）
+
+目前已確認，skyBox的渲染自己做…
+
+經測試，CopyColor一定要在畫完天空盒之後，
+否則會Renderer的renderTarget會指向attachMent為B的RenderTarget，
+而不是指向A.（目前看起來B不會正常clear，A才會…）
+a.研究看看水的渲染部份是否從terrain分離出來…
+	（這也是為什麼我Terrain要在opaque之後…)
+b.或是天空盒另外處理，自己畫，避免overDraw...
+settingSetting相關設定檔先處理好…
+
+啟動SceneGenerator的時候，
+在按下CreateButton後，
+一開始，先處理SceneEditSetting相關設定檔
+
+a.建立SceneEditSetting相關設定檔
+
+若是把地板不處理水，用另一個plane來畫，這樣
+需要做到地板先Zwrite不寫入…????可是這樣skyBox就畫出來…????
+
+
+天空盒渲染…
+//========1.戰爭迷霧的邊緣處理…
+//========2.戰爭和區域迷霧整合成一張
+//========3.植被編輯器（已處理重基本的UI）
+//========迷霧效果編輯整合…
+//========自動產生區域迷霧貼圖…
+
+Lit.Shader=>LitForwardPass.hlsl=>
+	UniversalFragmentPBR=>LightingPhysicallyBased
+SimpleLit=>SimpleLitForwardPass.hlsl=>
+	UniversalFragmentBlinnPhong=>CalculateBlinnPhong	
+Prefab 文件中分配給對象的 FileID 只是隨機數，您無法預測它們。
+GUID 會在 Unity 編輯器首次發現資產時分配給資產。在 Windows 上，
+我們只需向操作系統詢問 GUID，我很確定在 macOS 上也是如此
+
+a.是否要真正導入terrain系統（可以deform拉高低）
+b.支持六角形地圖?
+c.物件與地板過渡（比方樹）?
+
+//========場景編輯流程：
+//========1.Design template page prfab(Page Holder)
+//========2.Append prfab to template brush
+//========3.Create Scene(MPScene)
+//========4.Drag template page brush
+//========5.Paint template page
+//========6.Select Display Prefab
+//========7.Test your scene
+
+//========重新設計場景編輯器
+//========1.設計MPScene編輯器(Terrain Data，Objects Data(Scene Data))
+//========	a.新增MPSceneEditor class
+//========	b.MPScene tap page設計
+//========	c.將terrainEditor移到MPScene <=TerrainData
+//========	d.設計TemplateSelect編輯模式	 <=
+//========		a.ObjestsData最後輸出對像
+//========		b.Template筆刷資料，每個場景自己一份，有可能多場景…(但這樣MPScene就會有
+//========			關聯，所以應該是只有在Editor模式，利用目前場景檔所在位置，
+//========			然後就DataBaseLoad進來…
+//========			但這樣有兩個問題，
+//========			1.Main tilemap對應有分成兩部份…
+//========				1.模板對應…也這個資料應該是跨場景共用（只有一份，不用分場景）
+//========				2.實際格子資料，這個部份應該就是每個場景自己一份（每個場景有自己的一份,
+//========					但執行模式用不到，只有在編輯模式要load，也就是工具才load其對應的格子
+//========					資料）		
+//========		一.先匯入TileMap grid，並對應好相關的TileMap（看是用名字，還是直接拉對應的script）
+//========		二.依照TileMap裡的Sprite當key來對應好相關的prefabInfoList（含GameObject及Icon）
+//========			-統合PrefabInfo（讓刷物件也一起共用這個struct…，拉出去）
+//========		三.設計相關的筆刷工具…（刷quad instance的工具，一個prefabInfo，一個instance）
+//========		四.提供輸出按鈕，可直接輸出對應的instanceData…
+		
+
+1.捨棄主地塊tileMap的做法：
+	a.第一層tileMap為企劃的編輯代表物
+		主要是編完後，可以限制美術使用的prefab地塊
+	b.第二層tileMap為3d地塊的tileMap，每個格子只能受限於
+		主tileMap裡開放出來可以選擇的地表，所以只能用選擇來操作…
+		
+//========tileMap編輯
+
+//========1.改成全simple=>fullTransform.
+//========2.ResourceContainer統一
+//========3.切SubTransformContainer出來…
+//========4.輸出SubTransformContainer
+//========5.測試相關渲染
+大量刷物件工具整合，主要用於PagePrefab的編輯
+(PolyBrush Scatter mode edit)
+目前分析過，不是很好用，可能要把他編輯器的流程拿過來，
+針對自己目前的PageHolder來設計相關編輯器…
+
+
+1.美術先出設定圖（尚未分塊）
+2.企劃依照設定圖，做好分塊，並規劃相關模板（要做出對應的prefab）
+	，且輸出模板的相關icon，直接在tileMap上拼切塊的圖，跟美術相
+	關人員來回確認是否符合規格
+3.美術人員依照切出來的prefab來製作相關的分塊資料
+4.更新美術做好的分塊資料，並輸出相關icon
+5.企劃及美術利用相關更新輸出的icon來確認整合的效果
+6.輸出最終遊戲要用的場景資料來進行確認
+
+The prefab preview is use sceneView camera,
+so we need create preview icon with sceneView camera.
+
+工具流程大改，關掉PageInstanedEditor，
+保留LODHolder的做法。
+首先做一個template page，
+裡面是一堆LODHolder的物件，
+存成一個prefab，
+然後用tileMap去串
+製作Mountain_3的Prefab（之後用SpriteName來對…，還是寫一個腳本，用一個sprite欄位來對…）
+
+
+
+//WorldEditor_MS8
+
+1.//=======================tileMap建立測試
+2.//=======================拜訪TileMap
+3.CellPerfabEditor...製作
+	a.筆刷種物件（是否走instance的流程）
+	b.點選物件（走transform就不用管…）
+	c.也許使用polyBrush就解決…??（但它好像沒有處理物件重疊）
+	d.走原本的種物件處理流程，UndoRedo也都不用管…
+	f.刷具有Lod資訊的prefab
+	
+
+渲染流程相關：
+//=========1.延遲渲染流程
+//=========2.時時陰影方案(常規的級聯ShadowMap做法)
+//=========3.複合陰影(Composite Shadow）
+//=========4.PBR材質
+//=========5.Decal（血濺貼花）
+//=========6.全局光照方案-輻照度和高光積累
+//=========7.天空盒做法（Environment Map Mesh）
+//=============================================
+角色及特效渲染：
+1.紋理動畫(位置及法線數據）
+//=============================================
+後期效果：
+1.SSAO（使用½深度）
+2.景深效果（DOF）
+3.常規反鋸齒方案-AA
+4.Glow bloom
+5.DownScale
+6.光軸效果（god ray or LightShaft）
+7.Glare bloom
+8.Color grading(LUT）
+9.體積霧及雲(Ray marching base）
+
+
+elden ring相關：
+
+
+http://www.mamoniem.com/behind-the-pretty-frames-elden-ring/?fbclid=IwAR32Yc1Vycj_u2_b4bnRGIWorUds_jz8Ec2fM39XTMUtXpfkNJFrjEBUN8A
+https://www.139y.com/gl/7017885.html
+https://www.bilibili.com/read/cv15836717
+https://indiefaq.com/guides/elden-ring-optimised-graphics-guide.html
+https://www.gamersky.com/review/202203/1466101.shtml?tag=wap
+https://www.nexusmods.com/eldenring/mods/7/
+https://www.bilibili.com/s/video/BV12i4y1m7j4
+
+a.延遲渲染流程（支持較多的點光源）
+b.地城關卡和開放世界的整合（遮擋剔除做法）
+c.布料物理模擬
+d.陰影貼圖（級聯做法，CSM-Cascaded Shadow map）
+e.PBR材質（延遲渲染流程，統一）
+https://docs.unity3d.com/2018.3/Documentation/Manual/PostProcessing-Dithering.html
+抖动(dither), 是指一种特意引入的噪声, 用于替代简单量化产生的误差.
+不仅出现在图形处理中色彩表示精度不足的情况, 在音频处理中也常常用于
+构造一个平坦底噪来替代简单量化产生的谐波失真.
+f.Dithering：
+	Lots of objects in Elden Ring are supporting dithering and
+	having that global single channel dither 8*8 texture passed
+	to them at draw time. Regardless you see those objects
+	dithering or not, but they are drawn ready for that when
+	needed. Grass, Trees all foliage types as well as the Player
+	Character Armors & Cloth, Flags & Banners, NPCs and Enemies,
+	all supporting dithering out of the box.
+g.decal:(血濺貼花)
+h.Irradiance & Specular Accumulation(輻照度和高光積累)
+	//https://zhuanlan.zhihu.com/p/23410011
+	//Irradiance Volume是一種全局光照技術
+	//Cubemap(IBL) + GBuffer's (Normals + Depth + Surface) + 
+	//Irradiance Volume XYZW = Irradiance RT + Specular Acc RT
+i.Depth Down-Sampling：(多種深度貼圖，比方ssao使用1/2深度）
+	Depth Down-Sampling takes place two times. Once here (Graphics Queue),
+	and once in the Compute Queue. The one here (yet) is not justified,
+	and the output not used, but it was worth mentioning as it is an exist
+	step here! The other step called “Depth Downsampling” is at compute is
+	the one that is actually used, and will know later.
+	
+j.SSAO(使用1/2深度)
+	1.生成SSAO + Rotations
+	2.Previous VS Current frame：
+		在前一幀的 SSAO 和當前幀之間進行某種插值（時間）
+	3.最終的SSAO渲染目標：
+		當前打包的 SSAO 仍然是 1/2 目標分辨率。因此，在這一步中，
+		遊戲將生成最終的灰度 SSAO 渲染目標，該目標將通過轉換格式
+		和 blitting 將新的渲染目標縮放到全屏目標分辨率來使用。
+k.Composite Shadow(複合陰影)
+l.Environment Map Mesh
+	Cubemap Gen (Multiple Times)-(Sky dome)
+	1.Atmosphere
+	2.Clouds
+	3.Terrain
+m.Post Processing
+	1.Depth of Field
+	2.AA
+	3.Glow (Bloom)
+	4.Downscale
+	5.LightShaft(光軸)(極端光軸, 或者其他人會稱之為上帝射線),
+		只是與透明紋理和一些廣告牌的味道相結合，而不是實際的後處理器。
+		god ray...，光樹）
+	6.Glare(Bloom)
+		a.Generate Glare/Bloom
+		b.Tone Mapping Glare/Bloom
+		c.Apply Glare/Bloom
+		e.Tone Mapping
+	7.Color Grading (LUT)
+n.Light Culling
+		
+	
+
+
+1.體積霧
+2.體積雲、天空盒效果(風雲莫測的天氣系統上)
+3.各種光影特效（比方god ray之類的）
+4.開放世界大地圖架構（透視）
+5.豐富的植被系統
+6.完善的人物動作系統
+7.大量的煙霧、光芒、粒子等效果（環境粒子特效）
+add....3 Atmospheric Shaders for Elden Ring by SkonteJonte
+
+
+4.Inl_RenderPipeline.BeginContextRendering有gc
+5.DeubgUpdater.Update(){Invoke}有gc
+
+===============1.TesetMobileURP專案測試（dll測試）
+2.轉換FullProject模版物件
+
+
+===============1.GUIUtility.BegineGUI()有GC，跟displayFPS有關係
+===============2.GPU skin system Job轉matrix有gc
+===============3.GPU skin system輸出triangleCount有gc
+
+===============1.地表MeshRender整合（地塊…）
+===============2.植被渲染
+===============3.cpu culling gpu instance場景整合
+	===============a.調整成LOD0的meshName及materialName當key
+	===============b.測試輸出的instance data
+	===============c.和MPScene做整合
+
+
+//============植被優化整合：
+//============1.octTree轉成quadTree.
+//============2.性能問題，切太多quad，導致cpu culling太嚴重。
+
+
+//============1.Base RenderWorkFollow architecture
+//============2.mix water ground render
+//============3.one pass projection effect, war fog and far fog
+//============4.linear color space terrain splatting problem.
+5.particle intergration test
+6.huge amount static gpu instance convert editor test.
+7.huge amount gpu skin instance character test
+8.huge amount dynamic gpu instance building test
+9.huge amount vegetation intergration
+10.point light intergration test
+
+##light count debug display
+
+1.GroundShader'GroundImpl.hlsl'CalculateWaterColor has performance issue.
+//per pixel blend to more cause performance...
+//water color and ground color...
+
+MobileURP專案整理：
+MobileURPPackage：
+1.Shaders<============
+2.Core
+3.Script
+4.Editor
+5.Data
+
+屏幕空間優化後 比2個bias最好效果結合一起還好
+這麼大的提升 代碼量居然只要6句 採樣的也是已有的深度圖性能基本沒問題.代碼直接帶詳細說明。
+簡單測試函數就寫在了 LightingMyStandard_GI 內，根據實際項目可放屏幕陰影計算shader，
+任何地方只要能獲取世界坐標就可以
+
+void LightingMyStandard_GI( SurfaceOutputStandard s, UnityGIInput data,inout UnityGI gi)
+{
+	float4 casterWpos =float4( data.worldPos +  data.light.dir * 0.1f,1);
+	float4 casterNdc = mul(UNITY_MATRIX_VP, casterWpos);
+	casterNdc /= casterNdc.w;
+	float2 samplePos = casterNdc.xy * 0.5 + 0.5;
+	float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, samplePos);
+	if (depth > casterNdc.z) data.atten = 0;
+	#if defined(UNITY_PASS_DEFERRED) && UNITY_ENABLE_REFLECTION_BUFFERS
+		gi = UnityGlobalIllumination(data, s.Occlusion, s.Normal);
+	#else
+		Unity_GlossyEnvironmentData g = 
+		UnityGlossyEnvironmentSetup(s.Smoothness, data.worldViewDir, s.Normal, 
+		lerp(unity_ColorSpaceDielectricSpec.rgb, s.Albedo, s.Metallic));
+		gi = UnityGlobalIllumination(data, s.Occlusion, s.Normal, g);
+	#endif
+}
+
+如果虛擬投影物 被遮擋 就算真有遮擋物 陰影爲黑色 ，
+實際項目 最好轉到 Linear01Depth(depth) * _ProjectionParams.z
+比較真實距離 和 有效範圍內才算遮擋.
+
+//======================================================
+https://lindenreidblog.com/
+//======================================================
+
+https://ithelp.ithome.com.tw/articles/10244709
+//======================================================
+Your suspicions are accurate. You're running into floating point precision issues when you scroll a UV for too long.
+
+A 32 bit floating point number's precision depends on the value it's representing. A value between 0.0 and 1.0 will have a precision in the tens of millionths or better. For every range of values between powers of 2 the precision drops in half. So after one day of adding an unmodified _Time.y (unscaled time) there's only enough precision to represent 128 unique values between each full integer, which means significant and obvious banding.
+
+But when it comes to UVs you usually really only care about the 0.0 to 1.0 range as the texture repeats anyway, so if you can focus on only the fractional part of the offset value you would avoid the reduction in precision. That post you linked to mentions fract(), which is the GLSL equivalent of HLSL's frac(), and HLSL is what Unity's shaders are written in unless you're explicitly writing GLSLPROGRAM shaders.
+https://docs.microsoft.com/en-us/windows/desktop/direct3dhlsl/dx-graphics-hlsl-frac
+
+Note, regardless of what a lot of forum posts here say, or even Unity's own documentation and .shader files might suggest, Unity does not use Nvidia Cg anymore. Everything in CGPROGRAM blocks is written using HLSL. However the Cg documentation site is still excellent for giving good examples of what several common shared functions do and show example implementations. Cg and HLSL are mostly compatible, with the vast majority of functions existing and functioning identically between both, so it's a handy site to use. Just know if something doesn't seem to be working like you think, you may want to check the official HLSL documentation to make sure they're actually the same.
+https://developer.download.nvidia.com/cg/frac.html
+
+
+So, that'll fix the precision issue in terms of the texture stretching, but there will still be visual issues with panning a texture for multiple days. While the texture won't start getting banding and tearing issues, the panning will start to stutter. This is because the offset & time values themselves will eventually start having precision issues. So the same 1 day of _Time.y example from above, the texture can only be panned in steps of 1/128. That's enough to still be smooth, though some amount of judder from each step not being quite the same distance might start to show. After a week you'll start to notice the scrolling is effectively running at a lower framerate as there isn't enough precision in _Time.y to update to unique values for every 30th of a second. The only solution to this is to not use _Time, but rather use a c# script and Time.deltaTime to accumulate and wrap the offset there. Even in c# the Time.timeSinceLevelLoad and similar values are 32 bit floats, so will have precision issues running for over a week.
+
+BTW, the tearing is caused by floating point precision during vertex interpolation. The UV position each fragment gets is a barycentric interpolation of the 3 vertices of the triangle being rendered, so you're dealing with the additional imprecisions of multiple floating point values being multiplied and added together.
+
+//======================================================
+https://docs.unity3d.com/Manual/SL-PragmaDirectives.html
+
+SC-2T28-D7TB-HBWK-SACA-8MF9
+研究TextureArrayPlugin的git更新方式，來更新插件的做法…
+
+1.以新的MDScene為主，整理出最乾淨的測試資料及代碼…
+
+Use Light Probes for moving objects
+
+JobSystem culling在同時處理兩個以上的射影機會有刷新的問題（
+在editor選擇main，顯示prewWindow的時候）
+
+PageInstanceSystem編輯器模式…使用CPU culling編輯模式處理，動態需求…
+
+
+1.大量的ComputeBuffer perFrame SetData call容易造成閃爍問題（資料刷新）
+2.大量種類instanced call，較能避免閃爍問題
+3.如果perFrame SetData基本上就跟instanced送矩陣資料的效果差不多，兩者還是都送資料，差別在於instanced call會有1023的限制。
+
+
+or use mrt...
+opaque,
+RenderPassEvent.BeforeRenderingOpaques
+
+so the underGround, need renderBefoere Opaque, and copy the color by my self.
+
+
+1.水背景顏色會包含了浮空的東西，因為copy background包含了浮空物件。
+
+2.將terrain套上，在紅米三上確認性能狀況。（已確認，目前不好，複雜物件+terrain）
+3.PageInstance編輯器的問題?
+
+結論：
+1.gpu instance + gpu culling給植被系統使用（
+	在紅米三同一時間只能執行一次gpu culling,原因不明）
+2.其他場景物件，使用cpu culling(process with job），並搭配DrawMeshInstancedProcedural，
+之後判斷SystemInfo.maxComputeBufferInputsVertex是否支持，不支持使用DrawMeshInstanced
+
+DrawMeshInstancedIndirect雖然在拉近的時候，GPU culling出來的數量都是零
+但只要呼叫到DrawMeshInstancedIndirect，還是會把mesh資料往GPU端送，
+如果切page的話，會導致拉遠的時候，過多draw bath及set Pass call…
+由此得知，Instance系列相關函式，對於太多種類的mesh支持不友善，
+也就是種類太多的mesh，還是得回歸使用CPU culling來處理。
+	
+
+1.將PaintTextureEditor改成自建texture的架構，另建一個新的class。
+
+
+private BoundsOctree<uint> m_boundsOctTree = null;
+
+statuct InstanceData
+{
+	//uint kindIndex;
+	uint transformIndex;
+}
+
+class PerPageInfo
+{
+	uint m_pageIndex,		
+	List<dictionary<transformIndex, bool>> m_instanceDatas;
+}
+
+private List<PerPageInfo> m_pageInfos;
+
+=========
+add(pageIndex, kindIndex, transformIndex)
+if(m_pageInfos[pageIndex].m_instanceDatas[kindIndex].find(transformIndex)
+	 == end)
+{
+	m_pageInfos[pageIndex].m_instanceDatas[kindIndex][transformIndex] = true;
+}
+
+=========
+remove(pageIndex, kindIndex, transformIndex)
+it = m_pageInfos[pageIndex].m_instanceDatas[kindIndex].find(transformIndex);
+if(it != end)
+{
+	m_pageInfos[pageIndex].m_instanceDatas[kindIndex].erase(it);
+}
+
+=========
+collision check
+
+var checkBounds;
+var collisionPageList = m_boundsOctTree.getCollisionPageList(checkBounds);
+var element = collisionPageList.getEnumerate()
+while(element.moveNext())
+{
+	var pageIndex = element.current;
+	var PerPageInfo = m_pageInfos[pageIndex];
+	var instanceDatas = PerPageInfo.m_instanceDatas;
+	var kindElement = instanceDatas.getEnumerate();
+	while(kindElement.moveNext())	
+	{
+		//use this kind element to map instanceRenderer.
+		//
+	
+		//var transformElement = kindElement.current.getEnumerate();
+		//while(transformElement.moveNext())
+		//{			
+		//}
+		//transformElement.dispose();
+	}
+	kindElement.dispose();
+}
+element.dispose();
+
+
+InstanceObjectProcessor.
+
+struct pageInfo
+{
+	uint pageIndex,
+	uint pageKind
+}
+
+private BoundsOctree<pageInfo> m_boundsOctTree = null;
+
+struct pageData
+{
+	//multi per mesh transformBuffer
+	InstanceRender 
+}
+
+1.蒐集看到的pageList;
+2.依照pageList拆解出
+	struct KindData
+	{
+		uint pageKind
+		List<PageIndex>
+	}
+3.InstanceRender(by page Kind) to render pageIndex list,
+	the transform buffer by kind.
+
+確認目前有那些東西有用到建構及解構式，有的話，統一都不要用，
+改成ReInitialize及Release裡面做（因為建構及解構式，可能發生
+unity管不到而造成一些例外錯誤的情況，尤其是unity相關的東西）
+
+地形編輯器：
+1.Splatting框架及place Instance物件框架。
+2.Ground Splatting Editor.
+3.Vegetation Splatting Editor-『Huge amount-templateTransform』
+4.Paint mesh instance Editor-『More amount-perTransform』（per transform instance, rock and other…）	
+	a.reference VisiblePagsCuller, implement the PagesCollision(
+		include per page include matrix indices(dynamic transform buffer,
+		, maybe it's a problem) for solve brush collision);
+	b.a page index include a map(
+		key is dynamic transform buffer index, value is MeshKind);
+	c.so we need multi kind MeshInstanceRender(
+		conver form BuildingInstanceRender) for MeshInstanceProcessor		
+		
+	//a.『Paint collision』 use the Page AABB Bound，because reubulid the kd or //octTree is very lag.
+	//b.『Visible check』 is direct use dynamic native transform buffer(Reference //building management)
+
+
+確認佈署DLL專案可以正確執行。
+
+1.編輯器的整合（只保留該有的）
+2.規劃測試角色流程
+3.移除不必要的GpuSkin相關的代碼
+
+1.Drawer應該單純化…（不用分group或instance)
+2.AIBehavior應該要抽出來，不要再和
+
+
+1.perAIData對應的是一個Group的行為,
+也就是一個index對應的是一個group處理
+a.path處理，就是指group的移動。
+b.100個follower處理，group處理完，就執行。
+
+//group的data.(100)
+private NativeArray<GPUSkinInstanceData> m_GPUSkinInstanceDatas;
+
+//instance的data.(per group instance:100) 
+	(total instance: groupCount *  groupInstanceCount - 100(leaderCount)= 99900)	
+private NativeArray<GPUSkinInstanceData> m_PerSkinInstanceDatas;
+
+
+NativeArray<AIData> m_aiDatas
+struct AiData
+{
+	float3 position.
+	nativeQueue path.
+	uint pathID.
+}
+
+NativeQueue<float3> m_paths.
+
+NativeArray<float2> m_paths.
+size = maxAICount * roadMaxPointCount;
+
+
+a.湖泊重整，要整合目前的水架構…
+b.copy color要改成在bloom裡面自己做…
+c.projection effect, copy depth要改成在projection pass裡面自己做…
+
+記得RenderFeature比URP的RenderEvent pass之前執行…
+
+
+=====beforeBackGround need do copy color.
+renderQuede work flow.
+=====1.reflect pass.
+=====2.BeforeOpaque:
+	=====a.UpGround(Geometry-3), mountain, tree...
+	=====b.DownGround(Geometry-2), Canyon, 2d sprite
+=====3.AfterOpaque:
+	=====a.CopyDepth(URP, RenderPassEvent.AfterRenderingSkybox)
+	=====b.CopyOpaqueColor(URP, RenderPassEvent.AfterRenderingSkybox)
+=====4.m_beforeTransparentPass(RenderPassEvent.BeforeRenderingTransparents-2)
+	=====a.Draw Water(Geometry-1, lake and river)
+	=====b.draw terrain backGround(Geometry);
+=====5.OnlyCopyDepthPass(RenderPassEvent.BeforeRenderingTransparents-2)
+=========or m_copyGroundDepthPass(Editor need do append DepthOnly....)
+=========6.draw screenSpaceShadowEffect
+=====7.BeforeRenderingTransparents(particle(soft) and other, decal...)
+=====8.bloom pass(soft particle and other...)
+=====9.draw battle war fog.
+10.battle war fog mask management
+	a.reigster instance to static memeber
+	b.reference parameters:
+		一.mask texture
+		二.reference build parameters
+	c.mask texture apply function
+	
+
+
+1.使用polyBrush製作地上物件及地下物件，測試Blending運作正常。
+
+
+######################RenderFeatureNote##################
+
+void Start()
+{
+	ExtractScriptableRendererData();
+}
+
+private void LateUpdate()
+{
+	if (Input.GetKeyDown(KeyCode.Space))
+		ChangeStencil();
+}
+
+private void ExtractScriptableRendererData()
+{
+	var pipeline = ((UniversalRenderPipelineAsset)GraphicsSettings.renderPipelineAsset);
+	FieldInfo propertyInfo = pipeline.GetType().GetField("m_RendererDataList", BindingFlags.Instance | BindingFlags.NonPublic);
+	_scriptableRendererData = ((ScriptableRendererData[])propertyInfo?.GetValue(pipeline))?[0];
+	renderObjects = (RenderObjects)_scriptableRendererData.rendererFeatures[0];
+	renderObjects.settings.stencilSettings.stencilCompareFunction = CompareFunction.Equal;
+}
+
+private void ChangeStencil()
+{
+	 renderObjects.settings.stencilSettings.stencilCompareFunction = CompareFunction.NotEqual;      
+ 
+}
+
+When you modify a value inside of a ScriptableRendererFeature you have to call ScriptableRendererData.SetDirty(); to indicate that something was changed.
+Example:
+Code (CSharp):
+[SerializeField] ForwardRendererData rendererData;
+var blurFeature = rendererData.rendererFeatures.OfType<MobileBlurUrp>().FirstOrDefault();
+if (blurFeature == null) return;
+blurFeature.settings.BlurAmount = value;
+rendererData.SetDirty();
+######################RenderFeatureNote##################
+
+---------1.整合decal物件。
+---------2.ScreenSpaceDecal（dynamicClous）。
+---------3.整合effectBloom流程。
+---------4.GerstnerWaveWater實作
+---------5.架構重整：reflection,變成是獨立的renderFeature架構…（從extendRenderFeature抽離出來）
+	---------(reflection, bloom目前和渲染流程偶合性太高，暫不抽離出來）
+	
+不再使用virtual textue，直接使用depth取得高度…
+	
+6.WaterPlaneHeight及WaterPlaneDepth無法和河流共用…這樣很嚴重，
+	只能拍射一個mobel depth...要想辦法解決。
+	
+6.抽離bloom renderFeature.
+
+5.WaterDataProcessor
+	#######a.基礎資料規劃…
+	#######b.測試shader使用新參數是否運作正…
+	#######c.Wave參數規劃與重新設計，分river, lake, ocean.
+	d.測試工具調整時，是否運作正常
+6.將mobilePipeline相關水參數移到WaterData
+7.將Reflection相關參數移到ReflectionData,這樣就不會造成ReflectionProcessor一直重新建立（
+	調整ScriptableRendererFeature的參數，會導致Renderer重建…）
+8.將bloom相關參數移到BloomData
+
+9.整合gpu culling instance grass流程。
+10.場景物件管理，instance及page scene架構。
+
+11.Recast PathFinding專案整合（開新案）
+12.scope line專案整合（跟上面的專案合成一個）
+
+
+URP跟monobehavior相關
+SRP +Upgrading + Extension Developers.
+
+SRP is a big step away from how things have traditionally been done with Graphics in Unity. Instead of thinking of Unity as an engine with one renderer it is now a platform that (custom) renderers can be plugged into.
+
+This open Unity up in a number of ways:
+Game specific stylized rendering
+Experimental rendering algorithms
+Optimized rendering for a specific game.
+When undertaking this new approach we made some core, low level decisions on how we want the new system to work, a number of these decisions are divergent from existing unity. I want to take some time to explain these differences and why we made the decision to make these changes.
+
+The Start of a Journey
+SRP has existed in experimental state for the last year for experimentation, from this time we have received a lot of feedback from advanced users in terms of API and similar. From this we have managed to get a long way towards having a core SRP that we are happy with. That being said as we have been bringing our recommended pipelines public we have been receiving some more detailed feedback on how you would like to interact with specifically:
+Callbacks from SRP into extension features
+Shader writing system that is not Shader Graph
+
+Right now we are investing a large amount of effort into polishing off V1 for 2018.1, but as we move forward towards 18.2 and 18.3 we are going to be taking a closer look at the pain points that you have with the system. SRP isn’t something that we are finished with, it’s our new core rendering architecture, and we want it to be amazing.
+
+When we talk about moving to the SRP world of rendering it is important to think of it as a new rendering system. There are similarities (we still use existing data structures for example), but it is a new system. Similar to porting a feature to ECS / Job system you are going to need to port features to SRP if you want them to be compatible with SRP. Legacy Unity rendering will still exist into the foreseeable future and it’s okay if you want to wait to port your tools and assets. What we really want from you is help understanding your needs and how we can help you while still keeping the core design philosophy behind SRP.
+
+Fixing Bad Decisions
+The Unity renderer has grown somewhat organically over the past 10 years, and along the way a number of questionable decisions have snuck in. These decisions have led to the inability to do big optimisation work in the rendering code (as we would have to break user projects) as well as holding back some aspects of future work. When designing the SRP we decided to at the low level rethink the callback structure, going for the approach of issuing less callbacks so that we can offer a cleaner more optimised experience.
+
+Removing Camera Rendering Callbacks
+As pre-SRP Unity stands there are a number of callbacks issued to sibling scripts of a Camera component; specifically:
+OnPreCull
+OnPreRender
+OnPostRender
+OnRenderImage
+As these callbacks stand they offer ways to inject extra rendering code into Unity. The issue that arises when attempting to port these to SRP world is multifaceted.
+Existing plugins that use these are built with a very very deep implicit contract with Unity
+Assuming Camera.main is set
+Current render target setup is ‘known’ pre call
+You are using the legacy post processing (c++, little script control)
+Invoked by high level unity
+Callbacks (generally) have no arguments
+What camera is being used etc
+Designed as a ‘primitive’ injection method
+We have SRP where you can do much more
+These were invoked mid camera render. This was generally bad as we would have some rendering state configured and user code would then mutate this state (by calling a nested render, of just smashing some framebuffer state). This is where a large number of bugs in our backlog come from. The tough part is that fixing any bug here normally results in regressions against implicit, non documented behaviour.
+
+Always invoked, even if you don’t want or need them
+Overhead for no reason
+When we started working on SRP we looked into these callbacks and decided that making a breaking change here is advantageous to everyone in the long term even if there is some short term pain. When it comes to SRP we have added two new callbacks to the RenderPipeline class:
+public static event Action<Camera[]> beginFrameRendering;
+Called when SRP rendering begins. Do things like make frame dependent geometry or similar from this callback. Called by default in HD / LW pipe. If you write a custom pipe you need to issue the call yourself.
+
+public static event Action<Camera> beginCameraRendering;
+Called when camera rendering begins (per camera). Do things like camera dependent effects (planer reflection) or similar from this callback. Called by default in HD / LW pipe. If you write a custom pipe you need to issue the call yourself.
+
+A big advantage these callbacks have over legacy rendering callbacks is that they are not injected in the middle of rendering anything! This means that state is generally safe and preserved and you can do ‘whatever you want’ from within them!
+
+Cleaning Up Object Callbacks + Best Practices
+Object rendering callbacks in Unity are a two sided coin. They offer a large amount of flexibility but they can cause some really weird side effects if not used properly. Many of the issues users experience when customising rendering in Unity happen when using these callbacks. The real culprit is that they are issued in the middle of rendering. What this means is that OnWillRenderObject will be called during a camera render; when a camera is rendering there is a lot of state (some local like the camera state, and some global like the graphics device configuration) and during the OnWillRenderObject this state can be mutated leaving to subsequent steps in the rendering having issues. Further issues arise when you start to look deeply into how these callbacks should work and the ramifications to the rest of the rendering data model. These callbacks are issued against objects that have passed culling, that means that they are visible on screen and we have built an optimised data block to represent how they can be drawn. At this stage if a callback enable or disables a renderer what should be the expected behaviour?
+We allow that modification to affect the current list of renderable objects, this means that the render tasks cannot be started till all user code is completed executing and also makes the internal code munch more complex due to the introduction of corner cases
+We disallow modification to the ‘current’ state and changes take effect next frame.
+As it stands right now (including SRP) we take option one as it offers the most flexibility. That being said there are dragons in this code, and there are projects that depend on undefined behaviour. Due to this we have decided to leave many of these callbacks in… But I will make some recommendations.
+
+OnWillRenderObject - Called
+Called in SRP still (it is used for some internal systems still like animation). This callback can be used just before an object is rendered as it is now known to be visible. I highly recommend AGAINST using this. It introduces a sync point on the main thread in Unity. One common thing to do is call a Camera render here or similar, please please don’t do this; it’s really fragile.
+
+OnRenderObject - Not Called
+This was called at a (somewhat) well defined part of the rendering pipeline and allowed users to inject custom draw calls. In SRP there isn’t a ‘well defined’ point anymore as all pipelines are different. This functionality was also somewhat superseded by the camera command buffers in the old render pipelines. Instead per pipeline callbacks are being considered (talked about below).
+
+OnBecameVisible - Called
+Still called
+
+OnBecameInvisible - Called
+Still called
+A best practices solution to working with callbacks (on a per object basis) is to build a system that utilizes a combination of beginFrameRendering and OnBecameVisible. What you want to do is anything that requires updates when visible should register in OnBecameVisible then the next frame should utilise the ‘beingFrameRendering’ call. This also means that you will only do work once per frame instead of per camera render.
+
+Pipeline Specific Callbacks
+As it currently stands pipelines issue no callbacks to external systems (i.e there are no hook points). This is something we are investigating but there are a number of difficulties with this approach.
+
+As it stands now the pipelines have a number of passes and are quite tight and self contained what this means is that assumptions can be made between passes and optimizations applied. Every time there is a callback or hook point it means that these assumptions may not be true and it can lead to compromises needing to be made in the design of the system.
+
+For the lightweight pipeline we have done some experimentation with hook points (code can be found here), from our testing it seems that this will work but has other downsides. Refactoring the passes (reordering for example) is now much harder as there are now external dependencies on these hook points. I’m not saying that we won’t be adding these kind of things as we move forward, but we are trying to find a better way. Right now our approach is to offer a minimal set of things, then grow the offering as things become apparent they are needed. We don’t want to dig another hole for ourselves like we have with the current rendering architecture.
+
+Material Upgrading
+This is more pipeline specific. In 18.1 we have two new rendering pipelines; Lightweight and HD, they both have different audiences and I won’t be talking much about that here. What I want to talk about is upgrading materials from legacy Unity to these pipelines.
+
+Not from the start there are some big differences. In HD the material model and default texture packing is completely different. In addition the lighting model is drastically altered. What this means is that there is no such thing as a 1:1 upgrade from an existing Unity project to an SRP, some content reauthoring will always be needed.
+
+When it comes to upgrading out of the box we provide a number of scripts to go from legacy unity to both HD and LW. These scripts work because they know the textures and parameters that belong to the shaders and can provide an upgrade and remap from the old to the new. If you have custom shaders then the upgrade scripts don’t know how things should map to the new materials. If you really want to write a custom upgrader for your material you can clone the SRP into your project and write a custom upgrader. It is possible to extend bothe the LW and HD upgraders.
+
+Shader Upgrading
+This is a much more difficult topic. As it stands in Unity shaders have a number of passes and these passes have expected outputs; for example a GBUFFER pass is expected to output to multiple render targets in a specific way with specific data encoding. When it comes to upgrading shaders from one pipeline to another it is highly non trivial. If you have custom shaders that you wish to port to the new pipelines manual steps must be taken to do this. That is the shaders must be written to support the specific rendering pipeline. In Unity there is a concept of subshaders, when rendering an object Unity selects a valid subshader to use based on a number of rules. In SRP we have added an extra subshader selection tag: “RenderPipeline”. This name maps to the supported render pipeline and it is possible to add multiple supported subshaders to a shader each with different tags. And example of using this tag can be found here.
+
+Shader Future
+The biggest issues with shaders as they currently stand is that any change to the expected inputs / outputs from passes breaks the rendering contract, and thus potentially the rendering in a project. In 18.1 we are moving towards a world where we want to help ensure that we don’t break projects by updating something in our shader library. The way we are doing this for 18.1 is by leveraging a shader graph system. The graph is an extensible system that allows you to write custom nodes / master nodes - essentially it turns the generated shader into an artefact of the graph. This level of indirection means that if we change a core API or similar the node or template can be updated and on the next project load the shader will be regenerated. This helps substantially with ensuring that we can update the contracts that we have in the rendering pipeline without breaking user projects. For the start of the 2018 release cycle we are concentrating our efforts on this as it fills a very big hole in the Unity product that artists and content creators have been wanting for years.
+
+“What about surface shaders” I hear you ask. This is something that we are having internal discussions about and may start exploring during 2018. We can’t offer promises here. We have done a few minor internal prototypes by we need to decide if we want to maintain a surface shader system in parallel with the shader graph.
