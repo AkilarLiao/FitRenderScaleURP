@@ -1,5 +1,8 @@
-﻿using System;
+﻿#define PROCESS_AUTO_CREAT_FTI_RENDERSCALE_CONTROLER
+
+using System;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace FairyGUI
 {
@@ -174,7 +177,27 @@ namespace FairyGUI
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.depth = 1;
             camera.cullingMask = cullingMask;
+            //Modify by akilar
+            
+#if PROCESS_AUTO_CREAT_FTI_RENDERSCALE_CONTROLER
+            camera.clearFlags = CameraClearFlags.Nothing;
+            cameraObject.AddComponent<FitRenderScaleControler>();
+
+            UniversalAdditionalCameraData additionalCameraData = 
+                cameraObject.AddComponent<UniversalAdditionalCameraData>();
+            additionalCameraData.requiresDepthOption =
+                CameraOverrideOption.Off;
+            additionalCameraData.requiresColorOption =
+                CameraOverrideOption.Off;
+            additionalCameraData.requiresDepthTexture = false;
+            additionalCameraData.requiresColorTexture = false;
+            additionalCameraData.renderPostProcessing = false;
+            additionalCameraData.renderShadows = false;
+#else
             camera.clearFlags = CameraClearFlags.Depth;
+#endif //PROCESS_AUTO_CREAT_FTI_RENDERSCALE_CONTROLER
+
+
             camera.orthographic = true;
             camera.orthographicSize = DefaultCameraSize;
             camera.nearClipPlane = -30;
