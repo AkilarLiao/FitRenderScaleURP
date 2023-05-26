@@ -1,7 +1,6 @@
-﻿#define PROCESS_AUTO_CREAT_FTI_RENDERSCALE_CONTROLER
-
-using System;
+﻿using System;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 namespace FairyGUI
@@ -56,6 +55,8 @@ namespace FairyGUI
         public static float DefaultCameraSize = 5;
         public static float DefaultUnitsPerPixel = 0.02f;
 
+        private float m_originalScaleRatio = 1.0f;
+
         void OnEnable()
         {
             cachedTransform = this.transform;
@@ -73,6 +74,26 @@ namespace FairyGUI
                 OnScreenSizeChanged(Screen.width, Screen.height);
             else
                 OnScreenSizeChanged(_display.renderingWidth, _display.renderingHeight);
+
+            //add by akilar
+            RenderPipelineManager.beginCameraRendering -=
+            OnBeginCameraRendering;
+            RenderPipelineManager.beginCameraRendering +=
+                OnBeginCameraRendering;
+            RenderPipelineManager.endCameraRendering -=
+                OnEndCameraRendering;
+            RenderPipelineManager.endCameraRendering +=
+                OnEndCameraRendering;
+        }
+
+        //add by akilar
+        private void OnDisable()
+        {
+            UniversalRenderPipeline.asset.renderScale = m_originalScaleRatio;
+            RenderPipelineManager.beginCameraRendering -=
+                OnBeginCameraRendering;
+            RenderPipelineManager.endCameraRendering -=
+                OnEndCameraRendering;
         }
 
         void Update()
@@ -177,12 +198,10 @@ namespace FairyGUI
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.depth = 1;
             camera.cullingMask = cullingMask;
-            //Modify by akilar
             
-#if PROCESS_AUTO_CREAT_FTI_RENDERSCALE_CONTROLER
+            //Modify by akilar
+            //camera.clearFlags = CameraClearFlags.Depth;
             camera.clearFlags = CameraClearFlags.Nothing;
-            cameraObject.AddComponent<FitRenderScaleControler>();
-
             UniversalAdditionalCameraData additionalCameraData = 
                 cameraObject.AddComponent<UniversalAdditionalCameraData>();
             additionalCameraData.requiresDepthOption =
@@ -193,10 +212,6 @@ namespace FairyGUI
             additionalCameraData.requiresColorTexture = false;
             additionalCameraData.renderPostProcessing = false;
             additionalCameraData.renderShadows = false;
-#else
-            camera.clearFlags = CameraClearFlags.Depth;
-#endif //PROCESS_AUTO_CREAT_FTI_RENDERSCALE_CONTROLER
-
 
             camera.orthographic = true;
             camera.orthographicSize = DefaultCameraSize;
@@ -214,6 +229,25 @@ namespace FairyGUI
             cameraObject.AddComponent<StageCamera>();
 
             return camera;
+        }
+
+        //add by akilar
+        private void OnBeginCameraRendering(ScriptableRenderContext context,
+            Camera camera)
+        {
+            if (cachedCamera == camera)
+            {
+                m_originalScaleRatio = UniversalRenderPipeline.asset.renderScale;
+                UniversalRenderPipeline.asset.renderScale = 1.0f;
+            }
+        }
+
+        //add by akilar
+        private void OnEndCameraRendering(ScriptableRenderContext context,
+            Camera camera)
+        {
+            if (cachedCamera == camera)
+                UniversalRenderPipeline.asset.renderScale = m_originalScaleRatio;
         }
     }
 }
