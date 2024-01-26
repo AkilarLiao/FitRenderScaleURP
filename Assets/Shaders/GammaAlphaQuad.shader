@@ -16,7 +16,7 @@
         Pass
         {
             Tags{"LightMode" = "ConvertGamma"}
-            Blend SrcAlpha OneMinusSrcAlpha
+            //Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
             HLSLPROGRAM
             #pragma vertex VertexProgram
@@ -65,7 +65,8 @@
             half4 FragmentProgram(VertexOutput input) : SV_Target
             {
                 half4 resultColor = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.baseUV);
-                return half4(1.0, 0.0, 0.0, resultColor.a);
+                //return half4(1.0, 0.0, 0.0, resultColor.a);
+                return half4(1.0, 0.0, 0.0, 1.0);
             }
             ENDHLSL
         }
